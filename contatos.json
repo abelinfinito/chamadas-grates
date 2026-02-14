@@ -1,0 +1,6 @@
+[
+  { "id": 1, "nome": "Maria", "numero": "912345678", "status": "Online" },
+  { "id": 2, "nome": "José", "numero": "987654321", "status": "Ocupado" },
+  { "id": 3, "nome": "Carlos", "numero": "999888777", "status": "Ausente" },
+  { "id": 4, "nome": "Ana", "numero": "911222333", "status": "Online" }
+]
