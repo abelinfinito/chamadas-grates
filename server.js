@@ -3,47 +3,79 @@ const http = require('http');
 const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
-const io = new Server(server);
 
+// Configuração do Socket.io preparada para produção
+const io = new Server(server, { 
+    cors: { origin: "*" }, 
+    maxHttpBufferSize: 1e7 // 10MB para áudio/voz
+});
+
+// Servir ficheiros estáticos da pasta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota de contatos
+let users = {}; 
+
+// Rotas da API com caminhos absolutos (evita erros na Render)
 app.get('/api/contatos', (req, res) => {
-    fs.readFile('contatos.json', 'utf8', (err, data) => {
-        if (err) res.status(500).json([]);
-        else res.json(JSON.parse(data));
-    });
+    const filePath = path.join(__dirname, 'contatos.json');
+    if (fs.existsSync(filePath)) {
+        const data = fs.readFileSync(filePath, 'utf8');
+        res.json(JSON.parse(data));
+    } else {
+        res.json([]); // Retorna vazio se o ficheiro não existir
+    }
+});
+
+app.get('/api/grupos', (req, res) => {
+    const filePath = path.join(__dirname, 'grupos.json');
+    if (fs.existsSync(filePath)) {
+        const data = fs.readFileSync(filePath, 'utf8');
+        res.json(JSON.parse(data));
+    } else {
+        res.json([]);
+    }
 });
 
 io.on('connection', (socket) => {
-    console.log('Usuário conectado:', socket.id);
-
-    // 1. Chat de Texto
-    socket.on('chat-msg', (msg) => {
-        socket.broadcast.emit('chat-msg', msg); // Envia para os outros
+    socket.on('login', (numero) => {
+        users[numero] = socket.id;
+        socket.myNumber = numero;
+        io.emit('online-users', Object.keys(users)); 
     });
 
-    // 2. WebRTC - Sinais para Chamada de Voz (Offer, Answer, ICE Candidates)
-    socket.on('offer', (payload) => {
-        socket.broadcast.emit('offer', payload);
+    socket.on('logout', () => {
+        if (socket.myNumber) {
+            delete users[socket.myNumber];
+            io.emit('online-users', Object.keys(users));
+        }
     });
 
-    socket.on('answer', (payload) => {
-        socket.broadcast.emit('answer', payload);
+    socket.on('private-msg', (data) => {
+        const target = users[data.to];
+        if (target) io.to(target).emit('chat-msg', { from: socket.myNumber, text: data.text, type: data.type });
     });
 
-    socket.on('candidate', (payload) => {
-        socket.broadcast.emit('candidate', payload);
-    });
+    // WebRTC Sinalização
+    socket.on('offer', d => users[d.target] && io.to(users[d.target]).emit('offer', { sdp: d.sdp, from: socket.myNumber }));
+    socket.on('answer', d => users[d.target] && io.to(users[d.target]).emit('answer', { sdp: d.sdp }));
+    socket.on('candidate', d => users[d.target] && io.to(users[d.target]).emit('candidate', { candidate: d.candidate }));
+    socket.on('hangup', d => users[d.target] && io.to(users[d.target]).emit('hangup'));
 
-    socket.on('hangup', () => {
-        socket.broadcast.emit('hangup');
+    socket.on('disconnect', () => {
+        if (socket.myNumber) {
+            delete users[socket.myNumber];
+            io.emit('online-users', Object.keys(users));
+        }
     });
 });
 
-server.listen(3000, () => {
-    console.log('Servidor rodando em http://localhost:3000');
+// --- AJUSTE DA PORTA PARA A RENDER ---
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Servidor ANGO ZAP a rodar na porta ${PORT}`);
 });

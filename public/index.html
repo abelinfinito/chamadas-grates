@@ -3,77 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zap RealTime</title>
+    <title>ANGO ZAP - O Teu Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* Estilos Simples estilo WhatsApp Web */
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: #d9dbd5; }
-        
-        /* Lateral Esquerda */
-        #sidebar { width: 30%; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-        #search-box { padding: 10px; background: #f6f6f6; border-bottom: 1px solid #ddd; }
-        #search-input { width: 90%; padding: 8px; border-radius: 15px; border: 1px solid #ccc; outline: none; }
-        #contact-list { overflow-y: auto; flex: 1; }
-        .contact { padding: 15px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; align-items: center; }
-        .contact:hover { background: #f5f5f5; }
-        .avatar { width: 40px; height: 40px; background: #ddd; border-radius: 50%; margin-right: 10px; }
-        
-        /* Área Principal */
-        #main-chat { width: 70%; display: flex; flex-direction: column; background: #efe7dd; position: relative; }
-        
-        /* Cabeçalho da Conversa */
-        #chat-header { padding: 10px 20px; background: #ededed; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
-        .call-controls button { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
-        #btn-call { background: #009688; }
-        #btn-hangup { background: #d32f2f; display: none; }
+        :root { --main-green: #00a884; --bg-gray: #f0f2f5; --white: #ffffff; }
+        body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; margin: 0; height: 100vh; background: var(--bg-gray); display: flex; overflow: hidden; }
 
-        /* Área de Mensagens */
-        #messages-area { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .message { padding: 8px 15px; border-radius: 10px; max-width: 60%; font-size: 14px; }
-        .msg-sent { background: #dcf8c6; align-self: flex-end; }
-        .msg-received { background: #fff; align-self: flex-start; }
+        /* NOVO DESIGN LOGIN */
+        #login-screen { position: fixed; inset: 0; background: linear-gradient(135deg, #00a884 0%, #005e4d 100%); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+        .login-box { background: var(--white); padding: 40px; border-radius: 20px; width: 320px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+        .login-box h2 { color: var(--main-green); margin-bottom: 25px; font-size: 2rem; letter-spacing: -1px; }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        .btn-entrar { width: 100%; padding: 12px; background: #25d366; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 15px; }
+        .btn-suporte { display: block; color: #666; text-decoration: none; font-size: 0.9rem; }
 
-        /* Input de Texto */
-        #input-area { padding: 10px; background: #ededed; display: flex; gap: 10px; }
-        #msg-input { flex: 1; padding: 10px; border-radius: 20px; border: none; outline: none; }
-        #btn-send { padding: 10px 20px; border-radius: 20px; border: none; background: #009688; color: white; cursor: pointer; }
+        /* SIDEBAR COM BOTÃO FECHAR */
+        #sidebar { 
+            position: absolute; left: -320px; width: 320px; height: 100%; 
+            background: var(--white); transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1500; border-right: 1px solid #ddd;
+        }
+        #sidebar.open { left: 0; }
+        .menu-header { background: #f0f2f5; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
+        .close-menu { font-size: 30px; cursor: pointer; color: #555; line-height: 1; }
 
-        /* Elementos de Áudio (Invisíveis) */
-        audio { display: none; }
+        /* CHAT HEADER */
+        #main-chat { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; }
+        #chat-header { background: #ededed; padding: 12px 20px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #ddd; }
+        #hamburger { font-size: 26px; cursor: pointer; color: #555; }
+
+        /* MENSAGENS E INPUT (Otimizados) */
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; border-radius: 10px; max-width: 70%; font-size: 15px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .sent { align-self: flex-end; background: #dcf8c6; }
+        .received { align-self: flex-start; background: var(--white); }
+
+        /* O resto dos estilos (Call UI, Recording UI) permanecem conforme o código anterior */
+        #input-area { padding: 15px; background: #f0f0f0; border-top: 1px solid #ddd; }
+        #msg-input { flex: 1; padding: 12px; border-radius: 25px; border: none; outline: none; font-size: 16px; }
+        .btn-icon { background: none; border: none; font-size: 24px; cursor: pointer; opacity: 0.7; }
+        .btn-icon:hover { opacity: 1; }
+
+        #call-modal { display: none; position: fixed; inset: 0; background: #0b141a; color: white; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; }
+        .anim-calling { animation: pulse 1.5s infinite; margin-bottom: 20px; color: #25d366; font-size: 1.2rem; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div id="search-box">
-            <input type="text" id="search-input" placeholder="Pesquisar número ou nome...">
+<div id="login-screen">
+    <div class="login-box">
+        <h2>ANGO ZAP</h2>
+        <input type="text" id="login-input" placeholder="Teu número (Ex: 912345678)">
+        <button class="btn-entrar" onclick="tentarLogin()">ENTRAR NO CHAT</button>
+        <a href="suporte.html" class="btn-suporte">Precisa de ajuda? Suporte</a>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div class="menu-header">
+        <div style="display: flex; flex-direction: column;">
+            <strong id="user-greeting" style="color: #000;">Olá!</strong>
+            <span onclick="sair()" style="color: #ea0038; cursor: pointer; font-size: 0.8rem;">Terminar Sessão</span>
         </div>
-        <div id="contact-list">
-            </div>
+        <div class="close-menu" onclick="toggleMenu()">&times;</div>
+    </div>
+    <div style="padding: 15px; font-weight: bold; color: var(--main-green); font-size: 13px;">CONTACTOS ONLINE</div>
+    <div id="online-list"></div>
+    <div style="padding: 15px; font-weight: bold; color: var(--main-green); font-size: 13px;">GRUPOS DA COMUNIDADE</div>
+    <div id="group-list"></div>
+</div>
+
+<div id="main-chat">
+    <div id="chat-header">
+        <div id="hamburger" onclick="toggleMenu()">☰</div>
+        <div style="flex: 1;">
+            <strong id="chat-title" style="font-size: 1.1rem;">Bem-vindo ao ANGO ZAP</strong>
+            <div id="chat-status" style="font-size: 12px; color: #25d366;"></div>
+        </div>
+        <button class="btn-icon" onclick="iniciarChamada()">📞</button>
     </div>
 
-    <div id="main-chat">
-        <div id="chat-header">
-            <div id="chat-title">
-                <strong>Selecione um contato</strong>
-                <div id="call-status" style="font-size: 12px; color: gray;">Offline</div>
-            </div>
-            <div class="call-controls">
-                <button id="btn-call">📞 Ligar</button>
-                <button id="btn-hangup">🔴 Desligar</button>
-            </div>
+    <div id="messages"></div>
+
+    <div id="input-area">
+        <div id="normal-input" style="display: flex; align-items: center; gap: 10px;">
+            <button class="btn-icon" onclick="iniciarGravacao()">🎙️</button>
+            <input type="text" id="msg-input" placeholder="Digite aqui...">
+            <button class="btn-icon" onclick="enviarTexto()">➤</button>
         </div>
 
-        <div id="messages-area"></div>
-
-        <div id="input-area">
-            <input type="text" id="msg-input" placeholder="Digite uma mensagem...">
-            <button id="btn-send">Enviar</button>
+        <div id="recording-ui" style="display: none; align-items: center; justify-content: space-between; background: #fff; padding: 10px 20px; border-radius: 30px; border: 1px solid #ddd;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 10px; height: 10px; background: red; border-radius: 50%; animation: pulse 1s infinite;"></div>
+                <span id="voice-timer">00:00</span>
+            </div>
+            <div>
+                <button onclick="cancelarGravacao()" style="color: #ff3b30; border: none; background: none; font-weight: bold; margin-right: 15px; cursor: pointer;">CANCELAR</button>
+                <button onclick="pararEEnviar()" style="color: #00a884; border: none; background: none; font-weight: bold; cursor: pointer;">ENVIAR</button>
+            </div>
         </div>
     </div>
+</div>
 
-    <audio id="localAudio" autoplay muted></audio> <audio id="remoteAudio" autoplay></audio>
+<div id="call-modal">
+    <div id="call-label" class="anim-calling">A iniciar chamada...</div>
+    <div id="timer" style="font-size: 2.5rem; margin: 20px 0; display: none;">00:00</div>
+    <div id="caller-name" style="font-size: 1.8rem; margin-bottom: 50px;">Nome</div>
+    <div id="call-ui-btns">
+        <button id="btn-answer" onclick="atender()" style="padding: 15px 45px; background: #25d366; color: white; border-radius: 35px; border: none; font-size: 1.1rem; margin: 10px; cursor: pointer;">Atender</button>
+        <button onclick="desligar()" style="padding: 15px 45px; background: #ff3b30; color: white; border-radius: 35px; border: none; font-size: 1.1rem; margin: 10px; cursor: pointer;">Desligar</button>
+    </div>
+</div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
+<audio id="remoteAudio" autoplay></audio>
+<script src="script.js"></script>
 </body>
 </html>
