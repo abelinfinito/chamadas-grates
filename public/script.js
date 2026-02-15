@@ -35,25 +35,51 @@ function sair() {
     location.reload(); 
 }
 
-function toggleMenu() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleMenu() {
+    const side = document.getElementById('sidebar');
+    side.classList.toggle('open');
+    // ao abrir, foca o campo de pesquisa se existir
+    setTimeout(() => {
+        const s = document.getElementById('sidebar-search');
+        if (side.classList.contains('open') && s) s.focus();
+    }, 160);
+}
 
 // ATUALIZAÇÃO DE USUÁRIOS ONLINE
 socket.on('online-users', (list) => {
     onlineUsers = list;
     renderSidebar();
+
+    // ligar pesquisa (apenas uma vez)
+    const s = document.getElementById('sidebar-search');
+    if (s && !s._hasListener) {
+        s.addEventListener('input', renderSidebar);
+        s._hasListener = true;
+    }
 });
 
 function renderSidebar() {
     const onlineList = document.getElementById('online-list');
     onlineList.innerHTML = '';
-    
-    allContacts.filter(c => onlineUsers.includes(c.numero) && c.numero !== myNumber).forEach(c => {
-        const div = document.createElement('div');
-        div.style.cssText = 'padding: 15px; cursor: pointer; border-bottom: 1px solid #f2f2f2;';
-        div.innerHTML = `🟢 <strong>${c.nome}</strong><div style="font-size:12px;color:#999">${c.numero}</div>`;
-        div.onclick = () => selectTarget(c.numero, c.nome);
-        onlineList.appendChild(div);
-    });
+
+    const qEl = document.getElementById('sidebar-search');
+    const q = qEl && qEl.value ? qEl.value.trim().toLowerCase() : '';
+
+    const onlineContacts = allContacts.filter(c => onlineUsers.includes(c.numero) && c.numero !== myNumber);
+    const filtered = q ? onlineContacts.filter(c => (c.nome || '').toLowerCase().includes(q) || (c.numero || '').includes(q)) : onlineContacts;
+
+    if (filtered.length === 0) {
+        onlineList.innerHTML = '<div style="padding:15px;color:#999;font-size:0.95rem;">Nenhum contacto online encontrado</div>';
+    } else {
+        filtered.forEach(c => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f2f2f2; display:flex; gap:12px; align-items:center;';
+            const avatar = `<div style="width:36px;height:36px;border-radius:50%;background:#f1fbf7;color:#00a884;display:flex;align-items:center;justify-content:center;font-weight:700">${(c.nome||'?').charAt(0).toUpperCase()}</div>`;
+            div.innerHTML = `${avatar}<div style="flex:1;min-width:0"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</strong><div style="font-size:12px;color:#999">${c.numero}</div></div>`;
+            div.onclick = () => selectTarget(c.numero, c.nome);
+            onlineList.appendChild(div);
+        });
+    }
 
     const groupList = document.getElementById('group-list');
     groupList.innerHTML = '';

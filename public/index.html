@@ -29,6 +29,11 @@
         .menu-header { background: #f0f2f5; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
         .close-menu { font-size: 30px; cursor: pointer; color: #555; line-height: 1; }
 
+        /* Sidebar search */
+        #sidebar .search-wrap { padding: 12px 15px; border-bottom: 1px solid #f2f2f2; }
+        #sidebar-search { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #eee; background: #fafafa; box-sizing: border-box; font-size: 0.95rem; outline: none; }
+        #sidebar-search:focus { border-color: var(--main-green); box-shadow: 0 8px 30px rgba(0,168,132,0.06); }
+
         /* CHAT HEADER */
         #main-chat { flex: 1; display: flex; flex-direction: column; background: #e5ddd5; }
         #chat-header { background: #ededed; padding: 12px 20px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #ddd; }
@@ -80,6 +85,9 @@
             <span onclick="sair()" style="color: #ea0038; cursor: pointer; font-size: 0.8rem;">Terminar Sessão</span>
         </div>
         <div class="close-menu" onclick="toggleMenu()">&times;</div>
+    </div>
+    <div class="search-wrap">
+        <input id="sidebar-search" type="search" placeholder="Pesquisar nome ou número" aria-label="Pesquisar contactos">
     </div>
     <div style="padding: 15px; font-weight: bold; color: var(--main-green); font-size: 13px;">CONTACTOS ONLINE</div>
     <div id="online-list"></div>
