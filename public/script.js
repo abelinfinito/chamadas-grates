@@ -192,33 +192,74 @@ async function iniciarChamada() {
     socket.emit('offer', { target: currentTarget, sdp: offer });
 }
 
-socket.on('offer', async d => {
+// --- PARTE DE QUEM RECEBE A CHAMADA ---
+
+socket.on('offer', async (d) => {
+    // 1. Resetar estados anteriores
+    if (peerConnection) peerConnection.close();
+    
     currentTarget = d.from;
-    const user = allContacts.find(u => u.numero === d.from);
-    document.getElementById('caller-name').innerText = user ? user.nome : d.from;
     document.getElementById('call-modal').style.display = 'flex';
     document.getElementById('btn-answer').style.display = 'inline-block';
+    document.getElementById('caller-name').innerText = d.from;
     document.getElementById('call-label').innerText = "A receber chamada...";
-    
-    peerConnection = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
+    // 2. Criar a conexão IMEDIATAMENTE ao receber o sinal
+    peerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    // 3. Configurar para receber o teu áudio e tocar no ouvido dele
+    peerConnection.ontrack = (event) => {
+        const remoteAudio = document.getElementById('remoteAudio');
+        remoteAudio.srcObject = event.streams[0];
+        remoteAudio.play().catch(e => console.log("Erro autoplay:", e));
+    };
+
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('candidate', { target: currentTarget, candidate: event.candidate });
+        }
+    };
+
+    // 4. Definir a descrição remota (os teus dados)
     await peerConnection.setRemoteDescription(new RTCSessionDescription(d.sdp));
-    peerConnection.onicecandidate = e => e.candidate && socket.emit('candidate', { target: d.from, candidate: e.candidate });
-    peerConnection.ontrack = e => document.getElementById('remoteAudio').srcObject = e.streams[0];
+    
+    // 5. Processar fila de candidatos (se houver)
+    while (iceQueue.length) {
+        await peerConnection.addIceCandidate(iceQueue.shift());
+    }
 });
 
+// --- A FUNÇÃO MÁGICA QUE VAI CORRIGIR O ERRO ---
 async function atender() {
     document.getElementById('btn-answer').style.display = 'none';
-    document.getElementById('call-label').innerText = "Chamada Atendida";
-    document.getElementById('call-label').classList.remove('anim-calling');
-    document.getElementById('timer').style.display = 'block';
-    
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
-    
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', { target: currentTarget, sdp: answer });
-    startCallTimer();
+    document.getElementById('call-label').innerText = "A conectar áudio...";
+
+    try {
+        // PASSO CRUCIAL: Pegar o microfone DELE antes de responder
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Adicionar o microfone dele na conexão para TU ouvires
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        // Só AGORA criamos a resposta. Assim, a resposta já leva a informação do áudio dele.
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+
+        socket.emit('answer', { target: currentTarget, sdp: answer });
+
+        // Iniciar cronômetro e interface
+        document.getElementById('timer').style.display = 'block';
+        document.getElementById('call-label').innerText = "Em chamada";
+        startTimer();
+
+    } catch (err) {
+        console.error("Erro ao atender:", err);
+        alert("Erro: O microfone precisa ser permitido para atender.");
+    }
 }
 
 socket.on('answer', d => {

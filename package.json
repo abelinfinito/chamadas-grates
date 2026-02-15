@@ -1,16 +1,18 @@
 {
   "name": "chamasdas-grates",
   "version": "1.0.0",
-  "main": "node.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "ANGO ZAP - Chat e Chamadas Gratuitas",
   "dependencies": {
     "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "cors": "^2.8.5"
   }
 }

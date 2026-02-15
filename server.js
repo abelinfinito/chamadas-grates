@@ -74,8 +74,16 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- AJUSTE DA PORTA PARA A RENDER ---
+// --- AJUSTE PARA RODAR NO PC E NA RENDER ---
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => {
-    console.log(`Servidor ANGO ZAP a rodar na porta ${PORT}`);
+    // Se estiver no PC (onde a porta costuma ser 3000), mostra o link do localhost
+    if (PORT == 3000) {
+        console.log('✅ Servidor LOCAL iniciado!');
+        console.log(`👉 Aceda em: http://localhost:${PORT}`);
+    } else {
+        // Se estiver na Render, apenas confirma que está online
+        console.log(`✅ Servidor ONLINE na porta ${PORT}`);
+    }
 });
