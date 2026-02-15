@@ -3,6 +3,9 @@ let myNumber, myName, currentTarget, allContacts = [], allGroups = [], onlineUse
 let peerConnection, localStream, timerInterval, seconds = 0;
 let mediaRecorder, audioChunks = [], voiceTimerInterval, voiceSeconds = 0;
 
+// Typing indicator state
+let isTyping = false, typingTimeout = null, remoteTypingTimeout = null;
+
 // Carregar Dados Iniciais
 Promise.all([
     fetch('/api/contatos').then(r => r.json()),
@@ -64,10 +67,19 @@ function renderSidebar() {
 }
 
 function selectTarget(id, nome) {
+    const prevTarget = currentTarget;
+    if (isTyping && prevTarget) {
+        // informar que deixou de escrever para o contacto anterior
+        socket.emit('typing', { to: prevTarget, typing: false });
+        isTyping = false;
+        clearTimeout(typingTimeout);
+    }
+
     currentTarget = id;
     document.getElementById('chat-title').innerText = nome;
     document.getElementById('messages').innerHTML = '';
     document.getElementById('chat-status').innerText = 'Online';
+    hideTypingIndicator();
     if(document.getElementById('sidebar').classList.contains('open')) toggleMenu();
 }
 
@@ -78,6 +90,13 @@ function enviarTexto() {
     socket.emit('private-msg', { to: currentTarget, text: input.value, type: 'text' });
     addMsg(input.value, 'sent');
     input.value = '';
+
+    // informar que deixou de escrever
+    if (isTyping) {
+        isTyping = false;
+        clearTimeout(typingTimeout);
+        socket.emit('typing', { to: currentTarget, typing: false });
+    }
 }
 
 // GRAVAÇÃO DE VOZ (ESTILO WHATSAPP)
@@ -142,8 +161,40 @@ function resetVoiceUI() {
 socket.on('chat-msg', d => {
     if (d.from === currentTarget || allGroups.find(g => g.id === currentTarget)) {
         addMsg(d.text, 'received', d.type);
+        // ao receber mensagem, remove indicador de escrita
+        if (d.from === currentTarget) hideTypingIndicator();
     }
 });
+
+// Indicador de escrita (recebe do servidor)
+socket.on('typing', (d) => {
+    if (!currentTarget) return;
+    if (d.from === currentTarget) {
+        if (d.typing) {
+            const contact = allContacts.find(c => c.numero === d.from);
+            showTypingIndicator(contact ? contact.nome : d.from);
+        } else {
+            hideTypingIndicator();
+        }
+    }
+});
+
+function showTypingIndicator(name) {
+    const el = document.getElementById('typing-indicator');
+    const nameEl = document.getElementById('typing-name');
+    if (!el || !nameEl) return;
+    nameEl.innerText = `${name} está a escrever...`;
+    el.classList.add('show');
+    clearTimeout(remoteTypingTimeout);
+    remoteTypingTimeout = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+function hideTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (!el) return;
+    el.classList.remove('show');
+    clearTimeout(remoteTypingTimeout);
+}
 
 // ... (Lógica de Socket e WebRTC anterior permanece igual) ...
 
@@ -305,3 +356,54 @@ function resetCallUI() {
     document.getElementById('call-label').innerText = "Chamando...";
     document.getElementById('call-label').classList.add('anim-calling');
 }
+
+// Mantém o campo de mensagem visível (resolve movimento com teclado/mobile) e melhora UX do input
+(function keepMessageInputVisible() {
+    const input = document.getElementById('msg-input');
+    const messages = document.getElementById('messages');
+    if (!input || !messages) return;
+
+    // Ao focar, garante que a área de mensagens role até ao fim e que o input fique visível
+    input.addEventListener('focus', () => {
+        setTimeout(() => {
+            messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
+            input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 200);
+    });
+
+    // Enviar com Enter (prevent default do comportamento de nova linha)
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            enviarTexto();
+        }
+    });
+
+    // Notificar "a escrever" (debounced)
+    input.addEventListener('input', () => {
+        if (!currentTarget) return;
+        if (!isTyping) {
+            isTyping = true;
+            socket.emit('typing', { to: currentTarget, typing: true });
+        }
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+            socket.emit('typing', { to: currentTarget, typing: false });
+        }, 1020);
+    });
+
+    // Se o input perder o foco, garante que avisamos que deixámos de escrever
+    input.addEventListener('blur', () => {
+        if (isTyping) {
+            isTyping = false;
+            clearTimeout(typingTimeout);
+            socket.emit('typing', { to: currentTarget, typing: false });
+        }
+    });
+
+    // Ao redimensionar (ex.: teclado virtual), mantém scroll no fim
+    window.addEventListener('resize', () => {
+        messages.scrollTo({ top: messages.scrollHeight });
+    });
+})();

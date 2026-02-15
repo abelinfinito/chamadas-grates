@@ -60,6 +60,12 @@ io.on('connection', (socket) => {
         if (target) io.to(target).emit('chat-msg', { from: socket.myNumber, text: data.text, type: data.type });
     });
 
+    // TYPING INDICATOR (encaminha status de escrita)
+    socket.on('typing', (d) => {
+        const target = users[d.to];
+        if (target) io.to(target).emit('typing', { from: socket.myNumber, typing: !!d.typing });
+    });
+
     // WebRTC Sinalização
     socket.on('offer', d => users[d.target] && io.to(users[d.target]).emit('offer', { sdp: d.sdp, from: socket.myNumber }));
     socket.on('answer', d => users[d.target] && io.to(users[d.target]).emit('answer', { sdp: d.sdp }));
