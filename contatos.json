@@ -2,5 +2,6 @@
   { "id": 1, "nome": "Abel Quilengue", "numero": "926240472", "status": "Online" },
   { "id": 2, "nome": "Ivan", "numero": "942057621", "status": "Online" },
   { "id": 3, "nome": "Nelson", "numero": "927545347", "status": "Online" },
-  { "id": 4, "nome": "Ana", "numero": "911222333", "status": "Online" }
-]
+  { "id": 4, "nome": "Ana", "numero": "911222333", "status": "Online" },
+  { "id": 5, "nome": "Avelino João", "numero": "946036665", "status": "Online" }
+] 
